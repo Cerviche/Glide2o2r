@@ -1,7 +1,7 @@
-Texture Conversion Pipeline: Rice (Glide) → NG Format for SoH
+Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
 Project Description
 
-This pipeline automates the conversion of Ocarina of Time community texture packs from the legacy Rice/Glide format to the modern NG format used by Ship of Harkinian (SoH).
+This pipeline automates the conversion of Ocarina of Time community texture packs from the legacy Rice/Glide format to the modern o2r format used by Ship of Harkinian (SoH).
 The Texture Formats
 1. Rice/Glide Format (Legacy)
 
@@ -13,7 +13,7 @@ The Texture Formats
 
     Structure: Flat directory, no organization
 
-2. NG Format (Modern)
+2. o2r Format (Modern)
 
     Used by: Ship of Harkinian (SoH)
 
@@ -27,7 +27,7 @@ The Texture Formats
 
     Reloaded Glide Pack: Rice format textures from Ocarina Reloaded project
 
-    Reloaded NG Pack: Same textures in NG format from same project
+    Reloaded o2r Pack: Same textures in o2r format from same project
 
     Key Insight: Since both packs contain the same textures with different naming schemes, we can use them as a translation dictionary.
 
@@ -37,7 +37,7 @@ Community Texture Packs (like Hyrule Field HD, Character packs) exist only in Ri
 
     Match Rice-format community textures to Rice-format Reloaded textures (by filename hash)
 
-    Find the corresponding NG-format texture in the Reloaded NG pack (by content matching)
+    Find the corresponding o2r-format texture in the Reloaded o2r pack (by content matching)
 
     Convert community textures to NG format with proper directory structure
 
@@ -49,13 +49,13 @@ python
  Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
  Result: Copy matching Reloaded Rice file to working directory
 
-Stage 2: Rice-to-NG Content Matching
+Stage 2: Rice-to-o2r Content Matching
 python
 
  Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
  Calculate perceptual hash → "a1b2c3d4e5f6..."
- Find matching hash in Reloaded NG pack
- Reloaded NG: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
+ Find matching hash in Reloaded o2r pack
+ Reloaded o2r: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
  Build mapping: COM_hash_filename → NG_descriptive_path
 
 Stage 3: Community Conversion
@@ -67,7 +67,7 @@ python
 
 Why Perceptual Hashing?
 
-Since we can't directly match Rice format (hash-based names) to NG format (descriptive names), we use perceptual hashing:
+Since we can't directly match Rice format (hash-based names) to o2r format (descriptive names), we use perceptual hashing:
 
     pHashing Algorithm: Creates a 64-bit fingerprint of visual content
 
@@ -81,11 +81,11 @@ bash
  Directory structure
 ~/com/          # Community Rice pack (flat, hash-named PNGs)
 ~/glide/        # Reloaded Rice pack (flat, hash-named PNGs)  
-~/ng/           # Reloaded NG pack (hierarchical, descriptive PNGs)
+~/ng/           # Reloaded o2r pack (hierarchical, descriptive PNGs)
 
  Output directories (created automatically)
 ~/glideout/     # Matched Reloaded Rice textures
-~/comout/       # Converted community textures in NG format
+~/comout/       # Converted community textures in o2r format
 
 Usage
 bash
@@ -108,7 +108,7 @@ Use Cases
 
     Texture Pack Porting: Convert existing Rice-format community packs to SoH
 
-    Hybrid Packs: Combine multiple community packs in NG format
+    Hybrid Packs: Combine multiple community packs in o2r format
 
     Legacy Preservation: Make old texture packs compatible with modern emulators
 
@@ -132,15 +132,15 @@ This pipeline enables the OoT modding community to:
 
     Preserve years of community texture work
 
-    Standardize on the modern NG format while maintaining compatibility
+    Standardize on the modern o2r format while maintaining compatibility
 
     Automate what would otherwise be thousands of hours of manual work
 
 Credits
 
-    Ocarina Reloaded Team: For providing both Rice and NG format packs
+    Ocarina Reloaded Team: For providing both Rice and o2r format packs
 
-    Ship of Harkinian Team: For the NG format specification
+    Ship of Harkinian Team: For the o2r format specification
 
     GlideN64 Developers: For the Rice format specification
 
