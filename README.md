@@ -1,4 +1,5 @@
 Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
+
 Project Description
 
 This pipeline automates the conversion of Ocarina of Time community texture packs from the legacy Rice/Glide format to the modern o2r format used by Ship of Harkinian (SoH).
@@ -43,14 +44,12 @@ Community Texture Packs (like Hyrule Field HD, Character packs) exist only in Ri
 
 Technical Implementation
 Stage 1: Hash-to-Hash Matching
-python
 
- Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
- Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
- Result: Copy matching Reloaded Rice file to working directory
+Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
+Result: Copy matching Reloaded Rice file to working directory
 
 Stage 2: Rice-to-o2r Content Matching
-python
 
  Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
  Calculate perceptual hash → "a1b2c3d4e5f6..."
@@ -59,7 +58,6 @@ python
  Build mapping: COM_hash_filename → NG_descriptive_path
 
 Stage 3: Community Conversion
-python
 
  Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
  Lookup in mapping → "objects/gameplay_keep/gEffBombExplosion1Tex.png"
@@ -76,24 +74,21 @@ Since we can't directly match Rice format (hash-based names) to o2r format (desc
     Hamming Distance: Measures similarity (0=identical, 1-2=very similar, 3+=similar)
 
 Setup Instructions
-bash
 
- Directory structure
-~/com/          # Community Rice pack (flat, hash-named PNGs)
-~/glide/        # Reloaded Rice pack (flat, hash-named PNGs)  
-~/ng/           # Reloaded o2r pack (hierarchical, descriptive PNGs)
+Directory structure
+/wip/          # Root directory (will prompt)
+com/          # Community Rice pack (flat, hash-named PNGs)
+glide/        # Reloaded Rice pack (flat, hash-named PNGs)  
+ng/           # Reloaded o2r pack (hierarchical, descriptive PNGs)
 
- Output directories (created automatically)
-~/glideout/     # Matched Reloaded Rice textures
-~/comout/       # Converted community textures in o2r format
+Output directories (created automatically)
+glideout/     # Matched Reloaded Rice textures
+comout/       # Converted community textures in o2r format
 
-Usage
-bash
-
- Recommended starting point
+Recommended starting point
 python texture_converter_hamming2.py
 
- More aggressive matching (test thoroughly)
+More aggressive matching (test thoroughly)
 python texture_converter_hamming3.py
 
 Performance Metrics
