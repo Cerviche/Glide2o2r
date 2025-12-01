@@ -1,71 +1,65 @@
-Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
+# Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
 
-Project Description
+## Project Description
 
-This pipeline automates the conversion of Ocarina of Time community texture packs from the legacy Rice/Glide format to the modern o2r format used by Ship of Harkinian (SoH).
-The Texture Formats
-1. Rice/Glide Format (Legacy)
+This pipeline automates the conversion of Ocarina of Time community texture packs from the legacy Rice/Glide format to the modern o2r format used by **Ship of Harkinian (SoH)**.
 
-    Used by: Mupen64Plus, Project64 with GlideN64 plugin
+---
 
-    Naming: Texture hash-based filenames (e.g., THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png)
+## Texture Formats
 
-    Purpose: Matches textures in N64 game RAM via hash lookup
+### 1. Rice/Glide Format (Legacy)
+- **Used by:** Mupen64Plus, Project64 with GlideN64 plugin  
+- **Naming:** Texture hash-based filenames (e.g., `THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png`)  
+- **Purpose:** Matches textures in N64 game RAM via hash lookup  
+- **Structure:** Flat directory, no organization  
 
-    Structure: Flat directory, no organization
+### 2. o2r Format (Modern)
+- **Used by:** Ship of Harkinian (SoH)  
+- **Naming:** Descriptive, organized names (e.g., `objects/gameplay_keep/gEffBombExplosion1Tex.png`)  
+- **Purpose:** Direct filepath-based loading  
+- **Structure:** Hierarchical directories mirroring game assets  
 
-2. o2r Format (Modern)
+### 3. Ocarina Reloaded Bridge
+- **Reloaded Glide Pack:** Rice format textures from Ocarina Reloaded project  
+- **Reloaded o2r Pack:** Same textures in o2r format  
+- **Key Insight:** Both packs contain the same textures with different naming schemes, so they can be used as a translation dictionary.
 
-    Used by: Ship of Harkinian (SoH)
+---
 
-    Naming: Descriptive, organized names (e.g., objects/gameplay_keep/gEffBombExplosion1Tex.png)
+## The Conversion Challenge
 
-    Purpose: Direct filepath-based loading
+Community texture packs (like **Hyrule Field HD** or character packs) exist only in Rice format. To use them with SoH, we need to:  
 
-    Structure: Hierarchical directories mirroring game assets
+1. Match Rice-format community textures to Rice-format Reloaded textures (by filename hash)  
+2. Find the corresponding o2r-format texture in the Reloaded o2r pack (by content matching)  
+3. Convert community textures to NG format with proper directory structure  
 
-3. Ocarina Reloaded Bridge
+---
 
-    Reloaded Glide Pack: Rice format textures from Ocarina Reloaded project
+## Technical Implementation
 
-    Reloaded o2r Pack: Same textures in o2r format from same project
-
-    Key Insight: Since both packs contain the same textures with different naming schemes, we can use them as a translation dictionary.
-
-The Conversion Challenge
-
-Community Texture Packs (like Hyrule Field HD, Character packs) exist only in Rice format. To use them with SoH, we need to:
-
-    Match Rice-format community textures to Rice-format Reloaded textures (by filename hash)
-
-    Find the corresponding o2r-format texture in the Reloaded o2r pack (by content matching)
-
-    Convert community textures to NG format with proper directory structure
-
-Technical Implementation
-Stage 1: Hash-to-Hash Matching
-
+### Stage 1: Hash-to-Hash Matching
+```text
 Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
 Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
 Result: Copy matching Reloaded Rice file to working directory
 
 Stage 2: Rice-to-o2r Content Matching
 
- Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
- Calculate perceptual hash → "a1b2c3d4e5f6..."
- Find matching hash in Reloaded o2r pack
- Reloaded o2r: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
- Build mapping: COM_hash_filename → NG_descriptive_path
+Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+Calculate perceptual hash → "a1b2c3d4e5f6..."
+Find matching hash in Reloaded o2r pack
+Reloaded o2r: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
+Build mapping: COM_hash_filename → NG_descriptive_path
 
 Stage 3: Community Conversion
 
- Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
- Lookup in mapping → "objects/gameplay_keep/gEffBombExplosion1Tex.png"
- Copy to: comout/objects/gameplay_keep/gEffBombExplosion1Tex.png
+Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+Lookup in mapping → "objects/gameplay_keep/gEffBombExplosion1Tex.png"
+Copy to: comout/objects/gameplay_keep/gEffBombExplosion1Tex.png
 
 Why Perceptual Hashing?
-
-Since we can't directly match Rice format (hash-based names) to o2r format (descriptive names), we use perceptual hashing:
 
     pHashing Algorithm: Creates a 64-bit fingerprint of visual content
 
@@ -74,21 +68,24 @@ Since we can't directly match Rice format (hash-based names) to o2r format (desc
     Hamming Distance: Measures similarity (0=identical, 1-2=very similar, 3+=similar)
 
 Setup Instructions
+Directory Structure
 
-Directory structure
 /wip/          # Root directory (will prompt)
-com/          # Community Rice pack (flat, hash-named PNGs)
-glide/        # Reloaded Rice pack (flat, hash-named PNGs)  
-ng/           # Reloaded o2r pack (hierarchical, descriptive PNGs)
+com/           # Community Rice pack (flat, hash-named PNGs)
+glide/         # Reloaded Rice pack (flat, hash-named PNGs)
+ng/            # Reloaded o2r pack (hierarchical, descriptive PNGs)
 
-Output directories (created automatically)
-glideout/     # Matched Reloaded Rice textures
-comout/       # Converted community textures in o2r format
+Output Directories (Created Automatically)
 
-Recommended starting point
+glideout/      # Matched Reloaded Rice textures
+comout/        # Converted community textures in o2r format
+
+Recommended Start
+
 python texture_converter_hamming2.py
 
-More aggressive matching (test thoroughly)
+More Aggressive Matching (Test Thoroughly)
+
 python texture_converter_hamming3.py
 
 Performance Metrics
