@@ -85,25 +85,25 @@ Technical Implementation
 Stage 1: Hash-to-Hash Matching
 python
 
-# Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
-# Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
-# Result: Copy matching Reloaded Rice file to working directory
+ Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+ Reloaded Rice:  "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"  # Exact match!
+ Result: Copy matching Reloaded Rice file to working directory
 
 Stage 2: Rice-to-NG Content Matching
 python
 
-# Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
-# Calculate perceptual hash → "a1b2c3d4e5f6..."
-# Find matching hash in Reloaded NG pack
-# Reloaded NG: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
-# Build mapping: COM_hash_filename → NG_descriptive_path
+ Reloaded Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+ Calculate perceptual hash → "a1b2c3d4e5f6..."
+ Find matching hash in Reloaded NG pack
+ Reloaded NG: "objects/gameplay_keep/gEffBombExplosion1Tex.png" → same hash!
+ Build mapping: COM_hash_filename → NG_descriptive_path
 
 Stage 3: Community Conversion
 python
 
-# Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
-# Lookup in mapping → "objects/gameplay_keep/gEffBombExplosion1Tex.png"
-# Copy to: comout/objects/gameplay_keep/gEffBombExplosion1Tex.png
+ Community Rice: "THE_LEGEND_OF_ZELDA#92C1F51C#4#1_rgb.png"
+ Lookup in mapping → "objects/gameplay_keep/gEffBombExplosion1Tex.png"
+ Copy to: comout/objects/gameplay_keep/gEffBombExplosion1Tex.png
 
 Why Perceptual Hashing?
 
@@ -118,22 +118,22 @@ Since we can't directly match Rice format (hash-based names) to NG format (descr
 Setup Instructions
 bash
 
-# Directory structure
+ Directory structure
 ~/com/          # Community Rice pack (flat, hash-named PNGs)
 ~/glide/        # Reloaded Rice pack (flat, hash-named PNGs)  
 ~/ng/           # Reloaded NG pack (hierarchical, descriptive PNGs)
 
-# Output directories (created automatically)
+ Output directories (created automatically)
 ~/glideout/     # Matched Reloaded Rice textures
 ~/comout/       # Converted community textures in NG format
 
 Usage
 bash
 
-# Recommended starting point
+ Recommended starting point
 python texture_converter_hamming2.py
 
-# More aggressive matching (test thoroughly)
+ More aggressive matching (test thoroughly)
 python texture_converter_hamming3.py
 
 Performance Metrics
