@@ -41,46 +41,6 @@ Community Texture Packs (like Hyrule Field HD, Character packs) exist only in Ri
 
     Convert community textures to NG format with proper directory structure
 
-Pipeline Architecture
-text
-
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Community      │    │  Reloaded        │    │  Reloaded       │
-│  Rice Pack      │    │  Rice Pack       │    │  NG Pack        │
-│  (COM)          │    │  (Glide)         │    │  (NG)           │
-│                 │    │                  │    │                 │
-│ • Hash-based    │    │ • Hash-based     │    │ • Organized     │
-│   filenames     │    │   filenames      │    │   directories   │
-│ • Flat structure│    │ • Flat structure │    │ • Descriptive   │
-│ • ~4,400 files  │    │ • ~45,000 files  │    │   names         │
-└────────┬────────┘    └────────┬─────────┘    └────────┬────────┘
-         │                       │                       │
-         │ 1. Filename Match     │                       │
-         └───────────────────────┘                       │
-                                    2. Content Match     │
-                                    (Perceptual Hash)    │
-                                    └────────────────────┘
-                                               │
-                                               ▼
-                                    ┌──────────────────┐
-                                    │  Translation     │
-                                    │  Dictionary      │
-                                    │                  │
-                                    │ • COM_filename → │
-                                    │   NG_path        │
-                                    └────────┬─────────┘
-                                             │
-                                             │ 3. Convert
-                                             ▼
-                                    ┌──────────────────┐
-                                    │  Converted       │
-                                    │  Community Pack  │
-                                    │                  │
-                                    │ • NG format      │
-                                    │ • SoH compatible │
-                                    │ • ~2,300+ files  │
-                                    └──────────────────┘
-
 Technical Implementation
 Stage 1: Hash-to-Hash Matching
 python
