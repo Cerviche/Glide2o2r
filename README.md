@@ -1,4 +1,4 @@
-#Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
+Texture Conversion Pipeline: Rice (Glide) → o2r (NextGen) Format for SoH
 
 Project Description
 
@@ -38,17 +38,8 @@ This pipeline automates the conversion of Ocarina of Time community texture pack
 
     Structure: Hierarchical directories mirroring game assets
 
-3. Ocarina Reloaded Bridge
-
-    Reloaded Glide Pack: Rice format textures from Ocarina Reloaded project
-
-    Reloaded o2r Pack: Same textures in o2r format from same project
-
-    Key Insight: Since both packs contain the same textures with different naming schemes, we can use them as a translation dictionary.
-
 🚀 The 3-Step Pipeline
 Step 1: hash.py - Calculate Perceptual Hashes (One-time)
-text
 
 python hash.py
 
@@ -61,7 +52,6 @@ python hash.py
     Handles different image formats and modes automatically
 
 Step 2: map.py - Create Texture Mappings (Repeatable)
-text
 
 python map.py
 
@@ -76,7 +66,6 @@ python map.py
     Fast process, can be rerun with different thresholds
 
 Step 3: convert.py - Convert Texture Packs (Repeatable)
-text
 
 python convert.py
 
@@ -89,13 +78,11 @@ python convert.py
     Generates comprehensive conversion reports
 
 🛠️ Installation
-bash
 
 # Install required Python packages
 pip install imagehash Pillow tqdm
 
 📂 Directory Setup
-text
 
 project/
 ├── hash.py                    # Step 1: Hash calculator
@@ -124,9 +111,9 @@ Recommendation: Start with Hamming ≤2, increase gradually if needed.
 
 Community texture packs (like Hyrule Field HD, Character packs) exist only in Rice format. To use them with SoH, we need to:
 
-    Match Rice-format community textures to Rice-format Reloaded textures (by filename hash)
+    Match Rice-format community textures to Rice-format textures (by filename hash)
 
-    Find the corresponding o2r-format texture in the Reloaded o2r pack (by content matching)
+    Find the corresponding o2r-format texture in the SoH o2r pack (by content matching)
 
     Convert community textures to o2r format with proper directory structure
 
@@ -155,7 +142,6 @@ Without this, textures would only appear in one game location, causing "missing 
 
 📝 Usage Examples
 Basic Workflow
-bash
 
 # Step 1: Hash your texture directories (one-time)
 python hash.py  # Run for Glide directory (choose format 1)
@@ -168,7 +154,6 @@ python map.py   # Choose Hamming ≤2 when prompted
 python convert.py
 
 Advanced: Experimenting with Thresholds
-bash
 
 # Create multiple maps with different quality levels
 python map.py   # Create map_hamming2.csv (conservative)
@@ -230,23 +215,24 @@ This pipeline enables the OoT modding community to:
 
 🏆 Credits
 
-    Ocarina Reloaded Team: For providing both Rice and o2r format packs
-
+    Ocarina Reloaded Team: For providing inspiration for this project
+    
     Ship of Harkinian Team: For the o2r format specification
 
     GlideN64 Developers: For the Rice format specification
 
     Community Texture Artists: For the original texture packs
 
-📄 License
+    Ian Skelsky: For collaborative input and technical assistance
 
-[Specify your license here]
 🔗 Links
 
-    Ship of Harkinian
+    Ship of Harkinian - https://github.com/HarbourMasters/
 
-    Ocarina of Time HD Texture Project
+    Ocarina of Time HD Texture Project - https://github.com/GhostlyDark/
 
-    GlideN64
+    GlideN64 - https://github.com/gonetz/
+
+    Ian Skelsky - https://github.com/IanSkelskey
 
 This pipeline represents a bridge between emulator generations, ensuring that years of community texture work remain accessible as the Ocarina of Time modding ecosystem evolves.
