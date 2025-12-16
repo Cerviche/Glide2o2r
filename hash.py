@@ -5,32 +5,34 @@ Enhanced Texture Hash Generator for Next-Gen Pipeline
 
 Step 1 of 3 in the enhanced Glide → SoH texture conversion pipeline.
 
-This version is designed to work with ENHANCED versions of map.py and convert.py.
-It provides richer data while maintaining backward compatibility.
+This script scans a folder of PNG textures and computes hashes for use in
+enhanced texture mapping. It supports multiple hashing algorithms, alpha
+channel hashing, exact duplicate detection, and parallel processing.
 
 Key Features:
 -------------
-1. Multiple hash algorithms (phash, dhash, ahash, whash)
-2. Alpha channel hashing for transparent textures
-3. MD5 checksums for exact duplicate detection
-4. Duplicate analysis and reporting
-5. Parallel processing for speed
-6. Comprehensive metadata and statistics
+1. Multiple hash algorithms (phash, dhash, ahash, whash) for perceptual comparison.
+2. Alpha channel hashing for transparent textures.
+3. MD5 checksums for exact file duplicate detection.
+4. Duplicate analysis and reporting.
+5. Parallel processing for speed on large texture packs.
+6. Comprehensive metadata collection for each file.
+7. Backward compatibility with older map.py and convert.py.
 
 Output Structure:
 -----------------
 {
-  "metadata": {...},                     # Enhanced metadata
-  "hashes": {"path": "phash"},           # Backward compatible
-  "extended": {                          # Enhanced data for map.py
+  "metadata": {...},                     # General info about run
+  "hashes": {"path": "phash"},           # For backward compatibility
+  "extended": {                          # Enhanced per-file data
     "path": {
       "algorithms": {"phash": "...", "dhash": "...", ...},
       "md5": "checksum",
-      "alpha_hash": "...",               # Optional
-      "metadata": {...}
+      "alpha_hash": "...",               # Optional, only for alpha textures
+      "metadata": {...}                  # File size, mode, original format
     }
   },
-  "analysis": {...}                      # Duplicate analysis, statistics
+  "analysis": {...}                      # Duplicate analysis and statistics
 }
 """
 
@@ -46,7 +48,16 @@ from collections import Counter, defaultdict
 # ---------------------------------------------------------------------
 
 def check_dependencies():
-    """Ensure all required packages are available."""
+    """
+    Ensure all required Python packages are installed.
+
+    Packages:
+      - Pillow: Image loading and manipulation
+      - imagehash: Hash computation
+      - tqdm: Progress bars for interactive feedback
+
+    Prints missing packages and instructions to install them.
+    """
     missing = []
 
     try:
@@ -70,7 +81,7 @@ def check_dependencies():
         print("=" * 60)
         for dep in missing:
             print(f"  ❌ {dep}")
-        print("\nInstall with: pip install Pillow imagehash tqdm")
+        print("\nInstall dependencies with: pip install Pillow imagehash tqdm")
         print("=" * 60)
         return False
 
@@ -87,9 +98,11 @@ from tqdm import tqdm
 # CONFIGURATION
 # ---------------------------------------------------------------------
 
-# Hash algorithms available
-# phash: Primary algorithm (backward compatibility)
-# Others: For conflict resolution in map.py
+# Hash algorithms available:
+# phash: primary perceptual hash (backward compatibility)
+# dhash: difference hash
+# ahash: average hash
+# whash: wavelet hash
 HASH_ALGORITHMS = {
     "phash": imagehash.phash,
     "dhash": imagehash.dhash,
@@ -97,15 +110,25 @@ HASH_ALGORITHMS = {
     "whash": imagehash.whash,
 }
 
-DEFAULT_HASH_SIZE = 16      # 16x16 = 256-bit hash
-DEFAULT_NORMALIZE_SIZE = (256, 256)
+DEFAULT_HASH_SIZE = 16             # 16x16 hash for sufficient precision
+DEFAULT_NORMALIZE_SIZE = (256, 256)  # Resize images to this size before hashing
 
 # ---------------------------------------------------------------------
 # CORE FUNCTIONS
 # ---------------------------------------------------------------------
 
 def scan_directory(directory):
-    """Find all PNG files with basic validation."""
+    """
+    Recursively find all PNG files in a directory and validate them.
+
+    Returns a list of tuples:
+      (relative_path, full_path)
+
+    Notes:
+      - Skips unreadable files.
+      - Validates PNG header for basic correctness.
+      - Relative paths used for mapping to SoH texture paths.
+    """
     files = []
 
     for root, _, filenames in os.walk(directory):
@@ -122,13 +145,18 @@ def scan_directory(directory):
                     if f.read(8) == b'\x89PNG\r\n\x1a\n':
                         files.append((rel_path, full_path))
             except OSError:
-                continue  # Skip unreadable files
+                # Skip files we cannot read
+                continue
 
     return files
 
 
 def calculate_md5(filepath):
-    """Compute MD5 checksum for exact file comparison."""
+    """
+    Compute the MD5 checksum of a file.
+
+    Used to detect exact duplicates regardless of visual similarity.
+    """
     md5 = hashlib.md5()
     with open(filepath, 'rb') as f:
         for chunk in iter(lambda: f.read(8192), b''):
@@ -140,29 +168,33 @@ def normalize_image(img, target_size=None, preserve_alpha=False):
     """
     Prepare image for consistent hashing.
 
-    If preserve_alpha=True and image has alpha channel:
-    - Keep RGBA mode (hash algorithms will use RGB only)
-    - Alpha hash calculated separately
+    Resizes image and converts to RGB or RGBA if necessary.
+    - preserve_alpha=True keeps RGBA mode for separate alpha hashing
+    - If image has transparency but preserve_alpha=False, composite on white
     """
     if target_size:
         try:
             img = img.resize(target_size, Image.Resampling.BICUBIC)
         except AttributeError:
+            # Older Pillow fallback
             img = img.resize(target_size, Image.BICUBIC)
 
+    # Convert palette images to RGBA
     if img.mode in ('P', 'PA'):
         img = img.convert('RGBA')
 
+    # Convert 1-bit images to grayscale
     if img.mode == '1':
         return img.convert('L')
 
+    # Return grayscale as-is
     if img.mode == 'L':
         return img
 
     if img.mode == 'RGBA':
         if preserve_alpha:
             return img  # Keep RGBA for alpha hashing
-        # Composite onto white background
+        # Composite onto white background for hashing RGB only
         background = Image.new('RGB', img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[-1])
         return background
@@ -170,20 +202,31 @@ def normalize_image(img, target_size=None, preserve_alpha=False):
     if img.mode == 'RGB':
         return img
 
+    # Fallback conversion
     return img.convert('RGB')
 
 
 def compute_alpha_hash(img, hash_size):
-    """Calculate hash of alpha channel only."""
+    """
+    Compute hash of alpha channel only.
+
+    Returns None if image has no alpha channel.
+    Useful to detect transparency differences between textures.
+    """
     if img.mode != 'RGBA':
         return None
 
-    alpha = img.split()[-1]  # Extract alpha channel
+    alpha = img.split()[-1]
     return str(imagehash.phash(alpha, hash_size=hash_size))
 
 
 def compute_all_hashes(img, hash_size):
-    """Calculate all configured hash algorithms."""
+    """
+    Compute all configured hash algorithms for a normalized image.
+
+    Returns a tuple:
+      (results_dict, failures_dict)
+    """
     results = {}
     failures = {}
 
@@ -197,12 +240,26 @@ def compute_all_hashes(img, hash_size):
 
 
 def process_single_file(args):
-    """Process one file (for parallel execution)."""
+    """
+    Process one file to compute all hashes.
+
+    Args tuple:
+      (relative_path, full_path, options_dict)
+
+    Returns:
+      (success_flag, result_dict)
+
+    Notes:
+      - Computes MD5 for exact duplicates.
+      - Optionally computes alpha channel hash.
+      - Normalizes image before hashing.
+      - Returns detailed metadata for downstream analysis.
+    """
     rel_path, full_path, options = args
 
     try:
         with Image.open(full_path) as img:
-            # Get basic metadata
+            # Collect basic file metadata
             file_md5 = calculate_md5(full_path)
             metadata = {
                 'original_mode': img.mode,
@@ -212,18 +269,19 @@ def process_single_file(args):
                 'file_size': os.path.getsize(full_path)
             }
 
-            # Calculate alpha hash if requested
+            # Alpha hash
             alpha_hash = None
             if options.get('alpha_hash', False):
                 alpha_hash = compute_alpha_hash(img, options['hash_size'])
 
-            # Normalize and compute hashes
+            # Normalize image for consistent hashing
             normalized = normalize_image(
                 img,
                 target_size=options.get('normalize_size'),
                 preserve_alpha=options.get('preserve_alpha', False)
             )
 
+            # Compute all hashes
             hashes, failures = compute_all_hashes(normalized, options['hash_size'])
 
             if not hashes:
@@ -234,7 +292,7 @@ def process_single_file(args):
                     'metadata': metadata
                 }
 
-            # ✅ Added success flag
+            # Success
             return True, {
                 'file': rel_path,
                 'filename': os.path.basename(rel_path),
@@ -252,28 +310,37 @@ def process_single_file(args):
             'type': type(e).__name__
         }
 
-
 # ---------------------------------------------------------------------
 # INTERACTIVE WORKFLOW
 # ---------------------------------------------------------------------
 
 def collect_user_input():
-    """Get configuration from user interactively."""
+    """
+    Prompt the user for configuration options.
+
+    Returns a dictionary of processing options:
+      - directory: folder containing PNG textures
+      - format: glide or soh
+      - hash_size: size of hashes
+      - alpha_hash: whether to compute alpha channel hash
+      - preserve_alpha: whether to keep alpha during normalization
+      - normalize_size: target size for resizing
+      - parallel: use multiprocessing
+    """
     print("\n" + "=" * 60)
     print("ENHANCED TEXTURE HASH GENERATOR")
     print("=" * 60)
 
-    # Get directory
+    # Input folder
     while True:
         directory = input("\n📁 Enter texture directory: ").strip()
         if directory.startswith('~'):
             directory = os.path.expanduser(directory)
-
         if os.path.exists(directory):
             break
         print(f"❌ Directory not found: {directory}")
 
-    # Get format
+    # Texture format
     print("\n🏷️  Texture format:")
     print("  1. Glide/Rice (community texture packs)")
     print("  2. SoH/o2r (game reference textures)")
@@ -287,14 +354,13 @@ def collect_user_input():
             format_type = 'soh'
             break
 
-    # Get processing options
-    print("\n⚙️  Processing options (Enter for defaults):")
+    # Processing options
+    print("\n⚙️  Processing options (press Enter for defaults):")
 
     hash_size = input(f"  Hash size [{DEFAULT_HASH_SIZE}]: ").strip()
     hash_size = int(hash_size) if hash_size else DEFAULT_HASH_SIZE
 
     alpha_hash = input("  Enable alpha channel hashing? (y/N): ").lower().strip() == 'y'
-
     preserve_alpha = input("  Preserve alpha in preprocessing? (y/N): ").lower().strip() == 'y'
 
     normalize_size = DEFAULT_NORMALIZE_SIZE
@@ -314,9 +380,16 @@ def collect_user_input():
         'parallel': parallel
     }
 
-
 def analyze_results(results):
-    """Analyze hashing results for duplicates and patterns."""
+    """
+    Analyze hashing results for duplicates and patterns.
+
+    Returns a dictionary containing:
+      - duplicates_by_md5: exact duplicate files
+      - duplicates_by_phash: perceptual duplicates
+      - filename_conflicts: files with same name
+      - statistics: summary counters
+    """
     analysis = {
         'duplicates_by_md5': defaultdict(list),
         'duplicates_by_phash': defaultdict(list),
@@ -328,41 +401,37 @@ def analyze_results(results):
         if not data.get('success'):
             continue
 
-        # Group by MD5 (exact file duplicates)
         md5 = data['metadata']['file_md5']
         analysis['duplicates_by_md5'][md5].append(rel_path)
 
-        # Group by phash (perceptual duplicates)
         phash = data['hashes'].get('phash')
         if phash:
             analysis['duplicates_by_phash'][phash].append(rel_path)
 
-        # Check filename conflicts
         filename = os.path.basename(rel_path)
         analysis['filename_conflicts'][filename].append(rel_path)
 
-        # Count alpha textures
         if data.get('alpha_hash'):
             analysis['statistics']['alpha_textures'] += 1
 
     return analysis
 
+# ---------------------------------------------------------------------
+# MAIN FUNCTION
+# ---------------------------------------------------------------------
 
 def main():
-    """Main interactive workflow."""
+    """Main interactive workflow for enhanced texture hashing."""
     config = collect_user_input()
 
-    # Scan files
-    print(f"\n🔍 Scanning {config['directory']}...")
+    print(f"\n🔍 Scanning {config['directory']} for PNG files...")
     files = scan_directory(config['directory'])
-
     if not files:
         print("❌ No PNG files found")
         return
 
     print(f"  Found {len(files)} PNG files")
 
-    # Prepare processing options
     options = {
         'hash_size': config['hash_size'],
         'alpha_hash': config['alpha_hash'],
@@ -370,25 +439,19 @@ def main():
         'normalize_size': config['normalize_size']
     }
 
-    # Process files
     print("\n🔨 Processing files...")
     results = {}
     errors = []
     stats = Counter()
 
     if config['parallel'] and len(files) > 10:
-        # Parallel processing
         from multiprocessing import Pool
         cpu_count = os.cpu_count() or 4
-
         with Pool(cpu_count) as pool:
             tasks = [(rel, full, options) for rel, full in files]
-
-            for success, data in tqdm(
-                pool.imap_unordered(process_single_file, tasks),
-                total=len(tasks),
-                desc="Hashing"
-            ):
+            for success, data in tqdm(pool.imap_unordered(process_single_file, tasks),
+                                      total=len(tasks),
+                                      desc="Hashing"):
                 if success:
                     results[data['file']] = data
                     stats['success'] += 1
@@ -396,7 +459,6 @@ def main():
                     errors.append(data)
                     stats['failed'] += 1
     else:
-        # Sequential processing
         for rel_path, full_path in tqdm(files, desc="Hashing"):
             success, data = process_single_file((rel_path, full_path, options))
             if success:
@@ -406,11 +468,9 @@ def main():
                 errors.append(data)
                 stats['failed'] += 1
 
-    # Analyze results
     print("\n📊 Analyzing results...")
     analysis = analyze_results(results)
 
-    # Generate output
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"{config['format']}_hashes_{timestamp}.json"
 
@@ -425,76 +485,47 @@ def main():
             'failed': stats['failed'],
             'processing_options': options
         },
-
-        # Backward compatible section
-        'hashes': {
-            path: data['hashes']['phash']
-            for path, data in results.items()
-            if 'phash' in data['hashes']
-        },
-
-        # Enhanced section (for new map.py)
-        'extended': {
-            path: {
-                'algorithms': data['hashes'],
-                'alpha_hash': data.get('alpha_hash'),
-                'metadata': data['metadata']
-            }
-            for path, data in results.items()
-        },
-
-        # Analysis section
+        'hashes': {path: data['hashes']['phash'] for path, data in results.items() if 'phash' in data['hashes']},
+        'extended': {path: {'algorithms': data['hashes'],
+                            'alpha_hash': data.get('alpha_hash'),
+                            'metadata': data['metadata']} for path, data in results.items()},
         'analysis': {
             'duplicates': {
-                'exact_files': {
-                    md5: paths[:10]  # Limit to first 10
-                    for md5, paths in analysis['duplicates_by_md5'].items()
-                    if len(paths) > 1
-                },
-                'perceptual_matches': {
-                    phash: paths[:10]
-                    for phash, paths in analysis['duplicates_by_phash'].items()
-                    if len(paths) > 1
-                }
+                'exact_files': {md5: paths[:10] for md5, paths in analysis['duplicates_by_md5'].items() if len(paths) > 1},
+                'perceptual_matches': {phash: paths[:10] for phash, paths in analysis['duplicates_by_phash'].items() if len(paths) > 1}
             },
             'statistics': {
                 'total_files': len(files),
                 'successful': stats['success'],
                 'alpha_textures': analysis['statistics'].get('alpha_textures', 0),
-                'exact_duplicates': sum(1 for paths in analysis['duplicates_by_md5'].values()
-                                       if len(paths) > 1),
-                'perceptual_duplicates': sum(1 for paths in analysis['duplicates_by_phash'].values()
-                                           if len(paths) > 1)
+                'exact_duplicates': sum(1 for paths in analysis['duplicates_by_md5'].values() if len(paths) > 1),
+                'perceptual_duplicates': sum(1 for paths in analysis['duplicates_by_phash'].values() if len(paths) > 1)
             }
         },
-
-        'errors': errors[:100]  # Limit errors
+        'errors': errors[:100]
     }
 
-    # Save output
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    # Print summary
     print("\n" + "=" * 60)
     print("HASHING COMPLETE")
     print("=" * 60)
-    print(f"✅ Output: {output_file}")
-    print(f"📊 Success: {stats['success']}/{len(files)} files")
-
+    print(f"✅ Output file: {output_file}")
+    print(f"📊 Successfully hashed: {stats['success']}/{len(files)} files")
     dup_count = output['analysis']['statistics']['perceptual_duplicates']
     if dup_count > 0:
-        print(f"🔄 Perceptual duplicates found: {dup_count} sets")
+        print(f"🔄 Perceptual duplicates detected: {dup_count} sets")
         if config['format'] == 'soh':
-            print("   This is normal for SoH textures (game reuses textures)")
+            print("   Note: duplicate textures are common in SoH assets.")
 
     print("\n" + "=" * 60)
-    print("NEXT STEPS:")
+    print("NEXT STEPS")
     print("=" * 60)
-    print("1. Run this for BOTH Glide and SoH textures")
-    print("2. Use ENHANCED map.py for better matching")
-    print("3. Enhanced map.py will use multiple algorithms")
-    print("4. Enhanced convert.py will handle special cases")
+    print("1. Run this script for BOTH Glide and SoH texture directories.")
+    print("2. Use ENHANCED map.py for improved matching.")
+    print("3. Multiple hash algorithms help resolve conflicts.")
+    print("4. convert.py will use this hash output for texture conversion.")
     print("=" * 60)
 
 
@@ -502,10 +533,10 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠ Interrupted by user")
+        print("\n\n⚠ Process interrupted by user")
         sys.exit(0)
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
