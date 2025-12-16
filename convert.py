@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 """
-Enhanced Texture Pack Converter for Next-Gen Pipeline
+Enhanced Texture Pack Converter with Visual Comparison
 =====================================================
 
 Step 3 of 3 in the enhanced Glide → SoH texture conversion pipeline.
 
 This script converts PNG textures from legacy or custom community packs into
-the format used by Ship of Harkinian (SoH). It supports enhanced CSV maps
-with confidence scores, multiple destination paths, and optional backup copies.
+the format used by Ship of Harkinian (SoH). It now supports a **visual confirmation workflow**:
+after conversion, a dedicated comparison folder is created containing side-by-side
+images of the original SoH texture and the newly converted texture for inspection.
 
 Key improvements:
 - Handles very large CSV maps safely (increased field size limit)
-- Backup copies now stored in the same SoH directory structure as converted files
 - Path normalization ensures reliable filename matching
-- Caches split paths for performance on large conversions
-- Tracks backup copy errors for user awareness
+- Tracks conversion errors for user awareness
 - Computes averages using raw float values for more accurate reporting
-- Includes exception types in JSON error reports
 - Optional dry-run mode for testing without writing files
 - Provides detailed filtered/rejected texture summary
+- Creates a visual confirmation folder containing original and converted textures side by side
 """
 
 import os
@@ -190,19 +189,35 @@ def scan_texture_pack_with_metadata(directory):
                     continue
     return texture_files
 
+# ---------------------------------------------------------------------
+# VISUAL CONFIRMATION HELPERS
+# ---------------------------------------------------------------------
 
-def create_backup_copy(source_path, dest_path):
+def copy_for_comparison(original_soh_root, converted_file, soh_relative_paths, comparison_root):
     """
-    Create a backup copy of the original texture at the same SoH destination path.
+    Copy original SoH texture and converted texture into a comparison folder.
 
-    Returns the path of the backup copy or None if failed.
+    1. Copy original SoH texture from original SoH directory, maintaining directory structure.
+    2. Copy converted texture with "_alt" appended to the filename into the same relative directory.
     """
-    try:
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        shutil.copy2(source_path, dest_path)
-        return dest_path
-    except Exception:
-        return None
+    copied_files = []
+    for soh_path in soh_relative_paths:
+        # Original SoH texture
+        original_src = os.path.join(original_soh_root, soh_path)
+        if os.path.exists(original_src):
+            dest_original = os.path.join(comparison_root, soh_path)
+            os.makedirs(os.path.dirname(dest_original), exist_ok=True)
+            shutil.copy2(original_src, dest_original)
+            copied_files.append(dest_original)
+
+        # Converted texture
+        base, ext = os.path.splitext(soh_path)
+        dest_converted = os.path.join(comparison_root, base + "_alt" + ext)
+        os.makedirs(os.path.dirname(dest_converted), exist_ok=True)
+        shutil.copy2(converted_file, dest_converted)
+        copied_files.append(dest_converted)
+
+    return copied_files
 
 # ---------------------------------------------------------------------
 # MAIN CONVERSION WORKFLOW
@@ -243,6 +258,12 @@ def collect_conversion_configuration():
         print(f"❌ Directory not found: {texture_pack_dir}")
         return None
 
+    # Original SoH folder for comparison
+    original_soh_dir = input("\n📁 Enter the original SoH folder path for comparison: ").strip()
+    if not os.path.exists(original_soh_dir):
+        print(f"❌ Directory not found: {original_soh_dir}")
+        return None
+
     # Quality
     print("\n⚙️  Select quality filtering:")
     print("  1. High quality (distance ≤5, confidence ≥0.7)")
@@ -251,8 +272,7 @@ def collect_conversion_configuration():
     print("  4. No filtering (use all matches)")
     quality_level = {'1':'high','2':'medium','3':'low','4':'none'}.get(input("Choice (1-4): ").strip(),'medium')
 
-    # Backups
-    create_backups = input("\n🔧 Backup original textures in the same SoH directory structure? (y/N): ").lower()=='y'
+    # Overwrite existing
     overwrite_existing = input("⚠ Overwrite existing converted files? (y/N): ").lower()=='y'
 
     # Output folder
@@ -260,13 +280,19 @@ def collect_conversion_configuration():
     if not output_dir:
         output_dir = f"converted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+    # Comparison folder
+    comparison_dir = input(f"\n📁 Comparison folder for side-by-side textures [default: comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}]: ").strip()
+    if not comparison_dir:
+        comparison_dir = f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
     return {
         'map_file': selected_map,
         'texture_pack_dir': texture_pack_dir,
+        'original_soh_dir': original_soh_dir,
         'quality_level': quality_level,
-        'create_backups': create_backups,
         'overwrite_existing': overwrite_existing,
-        'output_dir': output_dir
+        'output_dir': output_dir,
+        'comparison_dir': comparison_dir
     }
 
 # ---------------------------------------------------------------------
@@ -302,20 +328,22 @@ def main():
     output_main = config['output_dir']
     os.makedirs(output_main, exist_ok=True)
 
+    comparison_root = config['comparison_dir']
+    os.makedirs(comparison_root, exist_ok=True)
+
     conversion_stats = {
         'total_textures': len(texture_files),
         'converted': 0,
         'missing': 0,
         'errors': 0,
         'skipped_existing': 0,
-        'backup_copies': 0,
         'converted_details': [],
         'missing_details': [],
         'error_details': [],
-        'backup_errors': []
+        'comparison_files': []
     }
 
-    print("\n📁 Converting textures...")
+    print("\n📁 Converting textures and creating comparison folder...")
 
     for rel_path, full_path, filename, size, mtime in tqdm(texture_files, desc="Converting", unit="files"):
         try:
@@ -335,18 +363,6 @@ def main():
             confidence = match_info.get('confidence',1.0)
             has_alpha = match_info.get('has_alpha_match',False)
 
-            # Copy backups in same directory structure
-            backup_paths = []
-            if config['create_backups']:
-                for soh_path in all_soh_paths:
-                    backup_dest = os.path.join(output_main, soh_path)
-                    backup_path = create_backup_copy(full_path, backup_dest)
-                    if backup_path:
-                        backup_paths.append(backup_path)
-                        conversion_stats['backup_copies'] += 1
-                    else:
-                        conversion_stats['backup_errors'].append({'source_file':full_path,'note':"Backup failed"})
-
             # Copy to all destinations
             copied_paths = []
             skipped_paths = []
@@ -358,6 +374,15 @@ def main():
                     continue
                 shutil.copy2(full_path,dest_path)
                 copied_paths.append(dest_path)
+
+            # Create visual confirmation copies
+            comparison_files = copy_for_comparison(
+                original_soh_root=config['original_soh_dir'],
+                converted_file=full_path,
+                soh_relative_paths=all_soh_paths,
+                comparison_root=comparison_root
+            )
+            conversion_stats['comparison_files'].extend(comparison_files)
 
             conversion_stats['converted'] += 1
             conversion_stats['converted_details'].append({
@@ -372,7 +397,7 @@ def main():
                 'has_alpha_match': has_alpha,
                 'copied_destinations': '|'.join(copied_paths),
                 'skipped_destinations': '|'.join(skipped_paths),
-                'backup_copy': '|'.join(backup_paths),
+                'comparison_files': '|'.join(comparison_files),
                 'status':'CONVERTED',
                 'notes': f"Skipped {len(skipped_paths)} existing files" if skipped_paths else ''
             })
@@ -397,10 +422,9 @@ def main():
     print(f"   Successfully converted: {conversion_stats['converted']}")
     print(f"   Textures missing mapping: {conversion_stats['missing']}")
     print(f"   Errors during conversion: {conversion_stats['errors']}")
-    if conversion_stats['skipped_existing']:
-        print(f"   Skipped existing files: {conversion_stats['skipped_existing']}")
-    if conversion_stats['backup_errors']:
-        print(f"⚠ Backup failures: {len(conversion_stats['backup_errors'])}")
+    print(f"   Comparison files created: {len(conversion_stats['comparison_files'])}")
+    print(f"\n💾 Output directory: {output_main}")
+    print(f"💾 Comparison folder: {comparison_root}")
 
 if __name__=="__main__":
     try:
