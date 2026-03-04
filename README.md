@@ -7,9 +7,6 @@ Rather than relying on filenames or metadata, the pipeline uses **perceptual ima
 
 The result is a fast, repeatable, and safe workflow that preserves decades of community texture work and makes it usable in modern ports.
 
-> **📦 Latest Beta Build:**
-> [Download via Google Drive](https://drive.google.com/file/d/1Gm8CRkofhqR_LDmafD49xW0llJPEPfc9/view)
-
 ---
 
 ## 🎯 Key Features
@@ -192,7 +189,6 @@ This project exists to support the Ocarina of Time modding community by preservi
 * [Ryan Giovanazzi](https://github.com/cerviche/)
 * [Ian Skelsky](https://github.com/IanSkelsky/)
 * [Ship of Harkinian](https://github.com/HarbourMasters/)
-* [Ocarina of Time HD Texture Project](https://github.com/GhostlyDark/)
 * [GlideN64](https://github.com/gonetz/)
 
 > *This pipeline is not just a converter. It is a compatibility layer between generations of tooling, ensuring community-created art remains usable as the platform evolves.*
